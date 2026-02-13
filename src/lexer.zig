@@ -1,5 +1,8 @@
 const std = @import("std");
 
+const Token = @import("./token.zig");
+const Error = @import("./error.zig");
+
 const Self = @This();
 
 arena: std.heap.ArenaAllocator,
@@ -8,78 +11,6 @@ buffer: []const u8,
 index: usize = 0,
 line: usize = 0,
 col: usize = 0,
-
-pub const Token = struct {
-    tag: Tag,
-    start: usize,
-    /// inclusive
-    end: usize,
-    line: usize,
-    col: usize,
-    source_buf: []const u8,
-
-    pub fn init(
-        buff: []const u8,
-        tag: Tag,
-        start: usize,
-        end: usize,
-        line: usize,
-        col: usize,
-    ) Error!Token {
-        if (start >= buff.len or end >= buff.len) {
-            return Error.Unexpected;
-        }
-
-        return Token{
-            .source_buf = buff,
-            .tag = tag,
-            .start = start,
-            .end = end,
-            .line = line,
-            .col = col,
-        };
-    }
-
-    pub fn lexeme(self: Token) []const u8 {
-        return self.source_buf[self.start .. self.end + 1];
-    }
-
-    pub fn print(self: Token) void {
-        std.debug.print(
-            "{d}:{d} {any} (len={d}) ",
-            .{ self.line, self.col, self.tag, self.end - self.start },
-        );
-        std.debug.print(
-            "|{s}|\n",
-            .{self.lexeme()},
-        );
-    }
-
-    pub const Tag = enum {
-        kw_alias,
-        kw_bind,
-
-        identifier,
-        string_literal,
-        integer_literal,
-        float_literal,
-
-        semicolon,
-        new_line,
-
-        // invalid,
-
-        pub fn str(self: Tag) ![]const u8 {
-            return switch (self) {
-                .kw_alias => "alias",
-                .kw_bind => "bind",
-                else => error.Unexpected,
-            };
-        }
-
-        pub const keywords: [2]Tag = .{ .kw_alias, .kw_bind };
-    };
-};
 
 pub fn init(buffer: []const u8) Error!Self {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -112,12 +43,6 @@ pub fn print(self: Self) void {
         }
     }
 }
-
-pub const Error = error{
-    Unexpected,
-    StringLiteralUnfinished,
-    StringLiteralNewLineBreak,
-};
 
 fn lexStringLiteral(self: *Self) Error!void {
     if (self.buffer[self.index] != '"') {

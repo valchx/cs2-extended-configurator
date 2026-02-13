@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const Lexer = @import("./lexer.zig");
-const Token = Lexer.Token;
+const Token = @import("./token.zig");
 
 test "alias keyword" {
     const data_string = "alias something someotherthing";
