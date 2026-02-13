@@ -12,20 +12,21 @@ col: usize = 0,
 pub const Token = struct {
     tag: Tag,
     start: usize,
+    /// inclusive
     end: usize,
     line: usize,
     col: usize,
-    source_buf: *[]const u8,
+    source_buf: []const u8,
 
     pub fn init(
-        buff: *[]const u8,
+        buff: []const u8,
         tag: Tag,
         start: usize,
         end: usize,
         line: usize,
         col: usize,
     ) Error!Token {
-        if (start >= buff.*.len or end >= buff.*.len) {
+        if (start >= buff.len or end >= buff.len) {
             return Error.Unexpected;
         }
 
@@ -40,18 +41,17 @@ pub const Token = struct {
     }
 
     pub fn lexeme(self: Token) []const u8 {
-        return self.source_buf.*[self.start .. self.end + 1];
+        return self.source_buf[self.start .. self.end + 1];
     }
 
     pub fn print(self: Token) void {
         std.debug.print(
-            "{d}:{d} {any} {s}\n",
-            .{
-                self.line,
-                self.col,
-                self.tag,
-                self.lexeme(),
-            },
+            "{d}:{d} {any} (len={d}) ",
+            .{ self.line, self.col, self.tag, self.end - self.start },
+        );
+        std.debug.print(
+            "|{s}|\n",
+            .{self.lexeme()},
         );
     }
 
@@ -64,7 +64,7 @@ pub const Token = struct {
         integer_literal,
         float_literal,
 
-        // semicolon,
+        semicolon,
         new_line,
 
         // invalid,
@@ -143,7 +143,7 @@ fn lexStringLiteral(self: *Self) Error!void {
                 self.tokens.append(
                     self.arena.allocator(),
                     try .init(
-                        &self.buffer,
+                        self.buffer,
                         .string_literal,
                         start_of_string_literal,
                         self.index,
@@ -208,7 +208,7 @@ fn lexNumberLiteral(self: *Self) Error!void {
     self.tokens.append(
         self.arena.allocator(),
         try .init(
-            &self.buffer,
+            self.buffer,
             if (is_integer) .integer_literal else .float_literal,
             start_of_number_literal,
             self.index - 1,
@@ -227,7 +227,7 @@ fn lex(self: *Self) Error!void {
                 self.tokens.append(
                     self.arena.allocator(),
                     try .init(
-                        &self.buffer,
+                        self.buffer,
                         .new_line,
                         self.index,
                         self.index,
@@ -244,21 +244,26 @@ fn lex(self: *Self) Error!void {
             },
             'a'...'z', 'A'...'Z', '_' => {
                 next_keyword: for (Token.Tag.keywords) |keyword| {
-                    const str = keyword.str() catch {
+                    const keyword_str = keyword.str() catch {
                         unreachable;
                     };
-                    const len = str.len;
+                    const keyword_len = keyword_str.len;
+
+                    if (self.buffer.len < self.index + keyword_len) {
+                        continue :next_keyword;
+                    }
 
                     if (!std.mem.eql(
                         u8,
-                        str,
-                        self.buffer[self.index .. self.index + len],
+                        keyword_str,
+                        self.buffer[self.index .. self.index + keyword_len],
                     )) {
                         continue :next_keyword;
                     }
 
-                    if (self.buffer.len > self.index + len and std.ascii.isAlphabetic(
-                        self.buffer[self.index + len],
+                    const buf_remaining = self.buffer.len > self.index + keyword_len;
+                    if (buf_remaining and std.ascii.isAlphabetic(
+                        self.buffer[self.index + keyword_len],
                     )) {
                         continue :next_keyword;
                     }
@@ -266,10 +271,10 @@ fn lex(self: *Self) Error!void {
                     self.tokens.append(
                         self.arena.allocator(),
                         try .init(
-                            &self.buffer,
+                            self.buffer,
                             keyword,
                             self.index,
-                            self.index + len,
+                            self.index + keyword_len - 1,
                             self.line,
                             self.col,
                         ),
@@ -277,26 +282,30 @@ fn lex(self: *Self) Error!void {
                         return Error.Unexpected;
                     };
 
-                    self.index += len;
-                    self.col += len;
+                    self.index += keyword_len;
+                    self.col += keyword_len;
 
                     continue :next_token;
                 }
 
-                var len: usize = 1;
-                while (self.index + len < self.buffer.len) : (len += 1) {
-                    if (std.ascii.isWhitespace(self.buffer[self.index + len])) {
-                        break;
+                const start_of_identifier = self.index;
+                while (self.index < self.buffer.len) : (self.index += 1) {
+                    if (std.ascii.isAlphanumeric(self.buffer[self.index])) {
+                        continue;
                     }
+                    if ('_' == self.buffer[self.index]) {
+                        continue;
+                    }
+                    break;
                 }
 
                 self.tokens.append(
                     self.arena.allocator(),
                     try .init(
-                        &self.buffer,
+                        self.buffer,
                         .identifier,
-                        self.index,
-                        self.index + len - 1,
+                        start_of_identifier,
+                        self.index - 1,
                         self.line,
                         self.col,
                     ),
@@ -304,14 +313,31 @@ fn lex(self: *Self) Error!void {
                     return Error.Unexpected;
                 };
 
-                self.index += len;
-                self.col += len;
+                self.col += self.index - start_of_identifier;
             },
             '"' => {
                 try self.lexStringLiteral();
             },
             '-', '0'...'9' => {
                 try self.lexNumberLiteral();
+            },
+            ';' => {
+                self.tokens.append(
+                    self.arena.allocator(),
+                    try .init(
+                        self.buffer,
+                        .semicolon,
+                        self.index,
+                        self.index,
+                        self.line,
+                        self.col,
+                    ),
+                ) catch {
+                    return Error.Unexpected;
+                };
+
+                self.index += 1;
+                self.col += 1;
             },
             else => {
                 self.index += 1;

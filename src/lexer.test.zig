@@ -219,3 +219,31 @@ test "negative float literal" {
         token.lexeme(),
     );
 }
+
+test "semicolon" {
+    const data_string = ";";
+
+    var lexer = try Lexer.init(data_string);
+    defer lexer.deinit();
+
+    const tokens = lexer.tokens.items;
+    try std.testing.expectEqual(1, tokens.len);
+    try std.testing.expectEqual(Token.Tag.semicolon, tokens[0].tag);
+}
+
+test "semicolon separate commands" {
+    const data_string = "some_command;some_other_command arg ; last_command;";
+
+    var lexer = try Lexer.init(data_string);
+    defer lexer.deinit();
+
+    const tokens = lexer.tokens.items;
+    try std.testing.expectEqual(7, tokens.len);
+    try std.testing.expectEqual(Token.Tag.identifier, tokens[0].tag);
+    try std.testing.expectEqual(Token.Tag.semicolon, tokens[1].tag);
+    try std.testing.expectEqual(Token.Tag.identifier, tokens[2].tag);
+    try std.testing.expectEqual(Token.Tag.identifier, tokens[3].tag);
+    try std.testing.expectEqual(Token.Tag.semicolon, tokens[4].tag);
+    try std.testing.expectEqual(Token.Tag.identifier, tokens[5].tag);
+    try std.testing.expectEqual(Token.Tag.semicolon, tokens[6].tag);
+}
