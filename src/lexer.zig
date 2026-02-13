@@ -129,6 +129,7 @@ fn lexStringLiteral(self: *Self) Error!void {
     }
 
     const start_of_string_literal = self.index;
+    const start_of_string_literal_col = self.col;
     self.index += 1;
     self.col += 1;
 
@@ -147,7 +148,7 @@ fn lexStringLiteral(self: *Self) Error!void {
                         start_of_string_literal,
                         self.index,
                         self.line,
-                        self.col,
+                        start_of_string_literal_col,
                     ),
                 ) catch {
                     return Error.Unexpected;
