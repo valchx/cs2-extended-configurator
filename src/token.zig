@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Error = @import("./error.zig");
+const Error = @import("./error.zig").Error;
 
 const Self = @This();
 
@@ -49,16 +49,25 @@ pub fn print(self: Self) void {
 }
 
 pub const Tag = enum {
+    // Keywords
     kw_alias,
     kw_bind,
+    kw_function,
 
     identifier,
+
+    // Literals
     string_literal,
     integer_literal,
     float_literal,
 
+    // Characters
     semicolon,
     new_line,
+
+    // Scopes
+    curly_bracket_open,
+    curly_bracket_close,
 
     // invalid,
 
@@ -66,9 +75,14 @@ pub const Tag = enum {
         return switch (self) {
             .kw_alias => "alias",
             .kw_bind => "bind",
+            .kw_function => "fn",
             else => error.Unexpected,
         };
     }
 
-    pub const keywords: [2]Tag = .{ .kw_alias, .kw_bind };
+    pub const keywords = [_]Tag{
+        .kw_alias,
+        .kw_bind,
+        .kw_function,
+    };
 };
