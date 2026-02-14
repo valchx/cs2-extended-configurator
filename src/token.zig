@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Error = @import("./error.zig").Error;
+const LexerError = @import("./error.zig").LexerError;
 
 const Self = @This();
 
@@ -18,9 +18,9 @@ pub fn init(
     end: usize,
     line: usize,
     col: usize,
-) Error!Self {
+) LexerError!Self {
     if (start >= buff.len or end >= buff.len) {
-        return Error.Unexpected;
+        return LexerError.Unexpected;
     }
 
     return .{

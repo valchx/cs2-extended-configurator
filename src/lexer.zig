@@ -1,18 +1,19 @@
 const std = @import("std");
 
 const Token = @import("./token.zig");
-const Error = @import("./error.zig").Error;
+const LexerError = @import("./error.zig").LexerError;
 
 const Self = @This();
 
 arena: std.heap.ArenaAllocator,
 tokens: std.ArrayList(Token),
+next_token: usize = 0,
 buffer: []const u8,
 index: usize = 0,
 line: usize = 0,
 col: usize = 0,
 
-pub fn init(buffer: []const u8) Error!Self {
+pub fn init(buffer: []const u8) LexerError!Self {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     var lexer = Self{
         .arena = arena,
@@ -20,7 +21,7 @@ pub fn init(buffer: []const u8) Error!Self {
             arena.allocator(),
             0,
         ) catch {
-            return Error.Unexpected;
+            return LexerError.Unexpected;
         },
         .buffer = buffer,
     };
@@ -32,6 +33,26 @@ pub fn init(buffer: []const u8) Error!Self {
 
 pub fn deinit(self: *Self) void {
     self.arena.deinit();
+}
+
+pub fn next(self: *Self) ?Token {
+    const token = self.peek();
+    self.toss();
+    return token;
+}
+
+pub fn peek(self: *Self) ?Token {
+    if (self.next_token >= self.tokens.items.len) {
+        return null;
+    }
+
+    const token = self.tokens.items[self.next_token];
+
+    return token;
+}
+
+pub fn toss(self: *Self) void {
+    self.next_token += 1;
 }
 
 pub fn print(self: Self) void {
@@ -51,7 +72,7 @@ fn appendToken(
     end: usize,
     line: usize,
     col: usize,
-) Error!void {
+) LexerError!void {
     self.tokens.append(
         self.arena.allocator(),
         try .init(
@@ -63,11 +84,11 @@ fn appendToken(
             col,
         ),
     ) catch {
-        return Error.Unexpected;
+        return LexerError.Unexpected;
     };
 }
 
-fn lex(self: *Self) Error!void {
+fn lex(self: *Self) LexerError!void {
     next_token: while (self.index < self.buffer.len) {
         switch (self.buffer[self.index]) {
             '\n' => {
@@ -194,13 +215,13 @@ fn lex(self: *Self) Error!void {
     }
 }
 
-fn lexStringLiteral(self: *Self) Error!void {
+fn lexStringLiteral(self: *Self) LexerError!void {
     if (self.buffer[self.index] != '"') {
         unreachable;
     }
 
     if (self.index == self.buffer.len - 1) {
-        return Error.StringLiteralUnfinished;
+        return LexerError.StringLiteralUnfinished;
     }
 
     const start_of_string_literal = self.index;
@@ -228,7 +249,7 @@ fn lexStringLiteral(self: *Self) Error!void {
                 return;
             },
             '\n' => {
-                return Error.StringLiteralNewLineBreak;
+                return LexerError.StringLiteralNewLineBreak;
             },
             else => {
                 self.index += 1;
@@ -236,10 +257,10 @@ fn lexStringLiteral(self: *Self) Error!void {
             },
         }
     }
-    return Error.StringLiteralUnfinished;
+    return LexerError.StringLiteralUnfinished;
 }
 
-fn lexNumberLiteral(self: *Self) Error!void {
+fn lexNumberLiteral(self: *Self) LexerError!void {
     const start_of_number_literal = self.index;
     var is_integer = true;
 
