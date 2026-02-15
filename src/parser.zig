@@ -23,20 +23,7 @@ pub fn init(
         .root_scope = undefined,
     };
 
-    parser.root_scope = parser.parseRootScope() catch |err| {
-        const token = lexer.tokens.items[lexer.next_token];
-        std.debug.print(
-            \\Token: {any}
-            \\Line: {d}
-            \\Col: {d}
-            \\
-        , .{
-            token.tag,
-            token.line,
-            token.col,
-        });
-        return err;
-    };
+    parser.root_scope = try parser.parseRootScope();
 
     return parser;
 }
@@ -61,28 +48,34 @@ fn parseScope(self: *Self) ParseError!AST.Scope {
         return ParseError.SyntaxError;
     }
 
-    while (self.lexer.peek()) |token| : (self.lexer.toss()) {
+    while (self.lexer.peek()) |token| {
         switch (token.tag) {
             .kw_alias => {
+                self.lexer.toss();
                 try scope.add(.{ .alias = try self.parseAlias() });
             },
             .kw_bind => {
+                self.lexer.toss();
                 try scope.add(.{ .bind = try self.parseBind() });
             },
             // TODO : Recursive -> Iterative ?
             // Or do we even allow scope declaration inside of other scope ?
             // TODO : Rename fn & function to "scope"
             .kw_function => {
+                self.lexer.toss();
                 try scope.add(.{ .scope = try self.parseScope() });
             },
             .identifier => {
                 try scope.add(.{ .command = try self.parseCommand() });
             },
             .curly_bracket_close => {
+                self.lexer.toss();
                 return scope;
             },
             // TODO : Do we allow infinite useless semicolons ?
-            .semicolon, .new_line => {},
+            .semicolon, .new_line => {
+                self.lexer.toss();
+            },
             else => {
                 break;
             },
@@ -95,22 +88,27 @@ fn parseScope(self: *Self) ParseError!AST.Scope {
 fn parseRootScope(self: *Self) ParseError!AST.RootScope {
     var scope = try AST.RootScope.init();
 
-    while (self.lexer.peek()) |token| : (self.lexer.toss()) {
+    while (self.lexer.peek()) |token| {
         switch (token.tag) {
             .kw_alias => {
+                self.lexer.toss();
                 try scope.add(.{ .alias = try self.parseAlias() });
             },
             .kw_bind => {
+                self.lexer.toss();
                 try scope.add(.{ .bind = try self.parseBind() });
             },
             // TODO : Recursive -> Iterative ?
             .kw_function => {
+                self.lexer.toss();
                 try scope.add(.{ .scope = try self.parseScope() });
             },
             .identifier => {
                 try scope.add(.{ .command = try self.parseCommand() });
             },
-            .curly_bracket_close, .semicolon, .new_line => {},
+            .curly_bracket_close, .semicolon, .new_line => {
+                self.lexer.toss();
+            },
             else => {
                 break;
             },

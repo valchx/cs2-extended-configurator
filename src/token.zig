@@ -46,6 +46,30 @@ pub fn print(self: Self) void {
         "|{s}|\n",
         .{self.lexeme()},
     );
+
+    var lines = std.mem.splitScalar(
+        u8,
+        self.source_buf,
+        '\n',
+    );
+
+    var i: usize = 0;
+    while (lines.next()) |line| : (i += 1) {
+        const line_prefix_len = 2 + 3;
+        std.debug.print("{d:2} | ", .{i + 1});
+
+        std.debug.print("{s}\n", .{line});
+
+        if (i == self.line) {
+            for (0..self.col + line_prefix_len) |_| {
+                std.debug.print(" ", .{});
+            }
+            for (0..(self.end - self.start + 1)) |_| {
+                std.debug.print("~", .{});
+            }
+            std.debug.print("\n", .{});
+        }
+    }
 }
 
 pub const Tag = enum {
