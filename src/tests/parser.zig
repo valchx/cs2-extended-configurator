@@ -1,12 +1,11 @@
 const std = @import("std");
-
-const Parser = @import("./parser.zig");
-const AST = @import("./ast.zig");
-const Token = @import("./token.zig");
-const Error = @import("./error.zig");
-const ParseError = Error.ParseError;
-
 const expectEqual = std.testing.expectEqual;
+
+const lib = @import("cs2_xcfg");
+const Parser = lib.Parser;
+const AST = lib.AST;
+const Token = lib.Token;
+const ParseError = lib.Error.ParseError;
 
 test "Empty buffer" {
     const buff =

@@ -1,7 +1,8 @@
 const std = @import("std");
 
-const Lexer = @import("./lexer.zig");
-const Token = @import("./token.zig");
+const lib = @import("cs2_xcfg");
+const Lexer = lib.Lexer;
+const Token = lib.Token;
 
 const expectEqual = std.testing.expectEqual;
 const expectEqualSlices = std.testing.expectEqualSlices;
